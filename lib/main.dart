@@ -1,15 +1,20 @@
+import 'dart:convert';
+
 import 'package:english_words/english_words.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+// import http package
+import 'package:http/http.dart' as http;
+
 // Alle apps har denne metode som er entry point
 void main() {
-  runApp(MyApp());
+  runApp(DumdyApp());
 }
 
 // Dette er den den indledende widget
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class DumdyApp extends StatelessWidget {
+  const DumdyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +53,31 @@ class MyAppState extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  // Characters
+  // Add Json variable to hold json value
+  var characters = [];
+
+  // Call using http to get data from api and store the json data in the json variable
+  void getData() async {
+    var response = await http.get(Uri.parse(
+        'http://localhost:3001/characters_for_user/?token=3bc0fb3c866389faaf5e857ce1a26ac2'));
+
+    if (response.statusCode == 200) {
+      characters = jsonDecode(response.body);
+      print(response.body);
+      print(characters);
+      print("Hurra");
+      notifyListeners();
+    } else {
+      print('Failed to load data');
+    }
+  }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   getData();
+  // }
 }
 
 class MyHomePage extends StatefulWidget {
@@ -69,6 +99,8 @@ class _MyHomePageState extends State<MyHomePage> {
         page = GeneratorPage();
       case 1:
         page = FavoritesPage();
+      case 2:
+        page = CharactersPage();
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
@@ -88,6 +120,10 @@ class _MyHomePageState extends State<MyHomePage> {
                   NavigationRailDestination(
                     icon: Icon(Icons.favorite),
                     label: Text('Favorites'),
+                  ),
+                  NavigationRailDestination(
+                    icon: Icon(Icons.person),
+                    label: Text('Characters'),
                   ),
                 ],
                 selectedIndex: selectedIndex,
@@ -182,6 +218,55 @@ class FavoritesPage extends StatelessWidget {
             title: Text(pair.asLowerCase),
           ),
       ],
+    );
+  }
+}
+
+class CharactersPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+
+    if (appState.characters.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('No characters yet.'),
+            SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                appState.getData();
+              },
+              child: Text('Load Characters'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Center(
+      child: ListView(
+        children: [
+          ElevatedButton(
+            onPressed: () {
+              appState.getData();
+            },
+            child: Text('Load Characters'),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text('You have '
+                '${appState.characters.length} characters:'),
+          ),
+          for (var character in appState.characters)
+            ListTile(
+              leading: Icon(Icons.favorite),
+              title:
+                  Text(character['name'] + ' - ' + character['campaign_name']),
+            ),
+        ],
+      ),
     );
   }
 }
