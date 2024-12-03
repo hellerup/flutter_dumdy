@@ -61,7 +61,9 @@ class MyAppState extends ChangeNotifier {
   // Call using http to get data from api and store the json data in the json variable
   void getData() async {
     var response = await http.get(Uri.parse(
-        'http://localhost:3001/characters_for_user/?token=3bc0fb3c866389faaf5e857ce1a26ac2'));
+        'http://64.20.52.59:30081/characters_for_user/?token=b4f69ac5af753a361a5f116eea64ac88'
+        // 'http://localhost:3001/characters_for_user/?token=a86921914213b918f6c95f676fb6955c'
+        ));
 
     if (response.statusCode == 200) {
       characters = jsonDecode(response.body);
@@ -194,6 +196,8 @@ class GeneratorPage extends StatelessWidget {
 
 // ...
 
+// Pages------------------------------------------------------------
+
 class FavoritesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -260,12 +264,77 @@ class CharactersPage extends StatelessWidget {
                 '${appState.characters.length} characters:'),
           ),
           for (var character in appState.characters)
-            ListTile(
-              leading: Icon(Icons.favorite),
-              title:
-                  Text(character['name'] + ' - ' + character['campaign_name']),
+            // ListTile(
+            //   leading: Icon(Icons.favorite),
+            //   title:
+            //       Text(character['name'] + ' - ' + character['campaign_name']),
+            // ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CharacterDetailsPage(character: character),
+                  ),
+                );
+              },
+              child: Text(character['name']),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class CharacterDetailsPage extends StatelessWidget {
+  final Map<String, dynamic> character;
+
+  CharacterDetailsPage({required this.character});
+
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+
+    // Find the complete character in the app state
+    var completeCharacter = appState.characters.firstWhere(
+      (element) => element['id'] == character['id'],
+    );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(character['name']),
+      ),
+      body: Align(
+        alignment: Alignment.topLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Character Details:'),
+              SizedBox(height: 10),
+              Text('Name: ${completeCharacter['name']}'),
+              Text('Campaign: ${completeCharacter['campaign_name']}'),
+              Text('Gender: ${completeCharacter['gender']}'),
+              Text(''),
+              Text('Strength: ${completeCharacter['strength']}'),
+              Text('Intelligence: ${completeCharacter['intelligence']}'),
+              Text('Wisdom: ${completeCharacter['wisdom']}'),
+              Text('Dexterity: ${completeCharacter['dexterity']}'),
+              Text('Constitution: ${completeCharacter['constitution']}'),
+              Text('Charisma: ${completeCharacter['charisma']}'),
+              SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text('Back'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
