@@ -21,7 +21,7 @@ class DumdyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => MyAppState(),
       child: MaterialApp(
-        title: 'Namer App',
+        title: 'Dumdy App',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
@@ -32,34 +32,20 @@ class DumdyApp extends StatelessWidget {
   }
 }
 
-// State-klassen er status på appen
+// State-klassen er status på appen - storen
 class MyAppState extends ChangeNotifier {
-  var current = WordPair.random();
-
-  // Gets the next random word pair
-  void getNext() {
-    current = WordPair.random();
-    notifyListeners();
-  }
-
-  var favorites = <WordPair>[];
-
-  // Sets the word pair as favorite if it is not already a favorite, and vice versa
-  void toggleFavorite() {
-    if (favorites.contains(current)) {
-      favorites.remove(current);
-    } else {
-      favorites.add(current);
-    }
-    notifyListeners();
-  }
-
   // Characters
   // Add Json variable to hold json value
   var characters = [];
+  var campaigns = [];
+  var fetching = false;
 
   // Call using http to get data from api and store the json data in the json variable
   void getData() async {
+    print("getData");
+    fetching = true;
+    notifyListeners();
+
     var response = await http.get(Uri.parse(
         'http://64.20.52.59:30081/characters_for_user/?token=b4f69ac5af753a361a5f116eea64ac88'
         // 'http://localhost:3001/characters_for_user/?token=a86921914213b918f6c95f676fb6955c'
@@ -67,13 +53,23 @@ class MyAppState extends ChangeNotifier {
 
     if (response.statusCode == 200) {
       characters = jsonDecode(response.body);
-      print(response.body);
-      print(characters);
-      print("Hurra");
-      notifyListeners();
+
+      response = await http.get(Uri.parse(
+          'http://64.20.52.59:30081/campaigns/?token=b4f69ac5af753a361a5f116eea64ac88'
+          // 'http://localhost:3001/characters_for_user/?token=a86921914213b918f6c95f676fb6955c'
+          ));
+
+      if (response.statusCode == 200) {
+        campaigns = jsonDecode(response.body);
+      } else {
+        print('Failed to load campaigns');
+      }
     } else {
-      print('Failed to load data');
+      print('Failed to load characters');
     }
+
+    fetching = false;
+    notifyListeners();
   }
   // @override
   // void initState() {
@@ -95,51 +91,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    Widget page;
-    switch (selectedIndex) {
-      case 0:
-        page = GeneratorPage();
-      case 1:
-        page = FavoritesPage();
-      case 2:
-        page = CharactersPage();
-      default:
-        throw UnimplementedError('no widget for $selectedIndex');
-    }
-
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
         body: Row(
           children: [
-            SafeArea(
-              child: NavigationRail(
-                extended: constraints.maxWidth > 600,
-                destinations: [
-                  NavigationRailDestination(
-                    icon: Icon(Icons.home),
-                    label: Text('Home'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.favorite),
-                    label: Text('Favorites'),
-                  ),
-                  NavigationRailDestination(
-                    icon: Icon(Icons.person),
-                    label: Text('Characters'),
-                  ),
-                ],
-                selectedIndex: selectedIndex,
-                onDestinationSelected: (value) {
-                  setState(() {
-                    selectedIndex = value;
-                  });
-                },
-              ),
-            ),
             Expanded(
               child: Container(
                 color: Theme.of(context).colorScheme.primaryContainer,
-                child: page,
+                child: CampaignsPage(),
               ),
             ),
           ],
@@ -149,100 +108,44 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-// GeneratorPage er en stateless widget som bruges til at vise ord og knapper
-class GeneratorPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-    var pair = appState.current;
-
-    IconData icon;
-    if (appState.favorites.contains(pair)) {
-      icon = Icons.favorite;
-    } else {
-      icon = Icons.favorite_border;
-    }
-
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          BigCard(pair: pair),
-          SizedBox(height: 10),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  appState.toggleFavorite();
-                },
-                icon: Icon(icon),
-                label: Text('Like'),
-              ),
-              SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: () {
-                  appState.getNext();
-                },
-                child: Text('Next'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ...
-
 // Pages------------------------------------------------------------
-
-class FavoritesPage extends StatelessWidget {
+class CampaignsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     var appState = context.watch<MyAppState>();
 
-    if (appState.favorites.isEmpty) {
-      return Center(
-        child: Text('No favorites yet.'),
-      );
-    }
-
-    return ListView(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Text('You have '
-              '${appState.favorites.length} favorites:'),
-        ),
-        for (var pair in appState.favorites)
-          ListTile(
-            leading: Icon(Icons.favorite),
-            title: Text(pair.asLowerCase),
-          ),
-      ],
-    );
-  }
-}
-
-class CharactersPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    var appState = context.watch<MyAppState>();
-
-    if (appState.characters.isEmpty) {
+    if (appState.fetching) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('No characters yet.'),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Loading campaigns...',
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (appState.campaigns.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('No campaigns yet.'),
             SizedBox(height: 10),
             ElevatedButton(
               onPressed: () {
                 appState.getData();
               },
-              child: Text('Load Characters'),
+              child: Text('Load Campaigns'),
             ),
           ],
         ),
@@ -256,34 +159,107 @@ class CharactersPage extends StatelessWidget {
             onPressed: () {
               appState.getData();
             },
-            child: Text('Load Characters'),
+            child: Text('Load Campaigns'),
           ),
           Padding(
             padding: const EdgeInsets.all(20),
             child: Text('You have '
-                '${appState.characters.length} characters:'),
+                '${appState.campaigns.length} campaigns:'),
           ),
-          for (var character in appState.characters)
-            // ListTile(
-            //   leading: Icon(Icons.favorite),
-            //   title:
-            //       Text(character['name'] + ' - ' + character['campaign_name']),
+          for (var campaign in appState.campaigns)
+            // ElevatedButton(
+            //   onPressed: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(
+            //           builder: (context) => Text(
+            //                 campaign['name'],
+            //                 // CampaignDetailsPage(campaign: campaign),
+            //               )
+            //           // CampaignDetailsPage(campaign: campaign),
+            //           ),
+            //     );
+            //   },
+            //   child: Text(campaign['name']),
             // ),
             ElevatedButton(
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        CharacterDetailsPage(character: character),
+                    builder: (context) => CharactersPage(campaign: campaign),
                   ),
                 );
               },
-              child: Text(character['name']),
+              child: Text(campaign['name']),
             ),
         ],
       ),
     );
+  }
+}
+
+class CharactersPage extends StatelessWidget {
+  final Map<String, dynamic> campaign;
+
+  CharactersPage({required this.campaign});
+  @override
+  Widget build(BuildContext context) {
+    var appState = context.watch<MyAppState>();
+
+    var campaignCharacters = appState.characters
+        .where((element) => element['campaign_id'] == campaign['id'])
+        .toList();
+
+    return LayoutBuilder(builder: (context, constraints) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(campaign['name']),
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+        ),
+        body: Row(
+          children: [
+            Expanded(
+              child: Container(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Center(
+                  child: ListView(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text('You have '
+                            '${campaignCharacters.length} characters:'),
+                      ),
+                      for (var character in campaignCharacters)
+                        if (character['campaign_id'] == campaign['id'])
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => CharacterDetailsPage(
+                                      character: character),
+                                ),
+                              );
+                            },
+                            child: Text(character['name']),
+                          ),
+                      SizedBox(height: 10),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: Text('Back'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -302,7 +278,9 @@ class CharacterDetailsPage extends StatelessWidget {
     );
 
     return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         title: Text(character['name']),
       ),
       body: Align(
@@ -338,43 +316,6 @@ class CharacterDetailsPage extends StatelessWidget {
       ),
     );
   }
-}
-
-@override
-Widget build(BuildContext context) {
-  var appState = context.watch<MyAppState>();
-  var pair = appState.current;
-
-  return Scaffold(
-    body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text('Dumgeons and Dragons:'),
-          SizedBox(height: 10),
-          BigCard(pair: pair),
-          SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                  onPressed: () {
-                    appState.toggleFavorite();
-                  },
-                  icon: Icon(Icons.favorite),
-                  label: Text('Like')),
-              ElevatedButton(
-                onPressed: () {
-                  appState.getNext();
-                },
-                child: Text('Next'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 // En widget er at sammenligne med et Component i Vue
