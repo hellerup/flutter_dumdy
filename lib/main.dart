@@ -293,17 +293,20 @@ class CharacterDetailsPage extends StatelessWidget {
             children: [
               Text('Character Details:'),
               SizedBox(height: 10),
-              Text('Name: ${completeCharacter['name']}'),
-              Text('Campaign: ${completeCharacter['campaign_name']}'),
-              Text('Gender: ${completeCharacter['gender']}'),
-              Text(''),
-              Text('Strength: ${completeCharacter['strength']}'),
-              Text('Intelligence: ${completeCharacter['intelligence']}'),
-              Text('Wisdom: ${completeCharacter['wisdom']}'),
-              Text('Dexterity: ${completeCharacter['dexterity']}'),
-              Text('Constitution: ${completeCharacter['constitution']}'),
-              Text('Charisma: ${completeCharacter['charisma']}'),
-              SizedBox(height: 10),
+              Table(
+                columnWidths: {
+                  0: FixedColumnWidth(120.0),
+                },
+                children: [
+                  attributeValue(completeCharacter, 'Name'),
+                  attributeValue(completeCharacter, 'Strength'),
+                  attributeValue(completeCharacter, 'Intelligence'),
+                  attributeValue(completeCharacter, 'Wisdom'),
+                  attributeValue(completeCharacter, 'Dexterity'),
+                  attributeValue(completeCharacter, 'Constitution'),
+                  attributeValue(completeCharacter, 'Charisma'),
+                ],
+              ),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -316,6 +319,28 @@ class CharacterDetailsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+TableRow attributeValue(completeCharacter, String attribute) {
+  var label = attribute;
+  var value = '';
+  if (completeCharacter[attribute.toLowerCase()] != null) {
+    value = completeCharacter[attribute.toLowerCase()].toString();
+  }
+  var bonusAttribute = '${attribute.toLowerCase()}_bonus';
+  var bonus = '';
+  var bonusSign = '';
+  if (completeCharacter[bonusAttribute] != null) {
+    bonus = completeCharacter[bonusAttribute].toString();
+    bonusSign = completeCharacter[bonusAttribute] > 0 ? '+' : '';
+    bonus = '(${bonusSign + bonus})';
+  }
+
+  return TableRow(children: [
+    Text(label),
+    Text(value),
+    Text(bonus),
+  ]);
 }
 
 // En widget er at sammenligne med et Component i Vue
