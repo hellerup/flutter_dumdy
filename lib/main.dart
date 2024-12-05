@@ -47,16 +47,18 @@ class MyAppState extends ChangeNotifier {
     notifyListeners();
 
     var response = await http.get(Uri.parse(
-        'http://64.20.52.59:30081/characters_for_user/?token=b4f69ac5af753a361a5f116eea64ac88'
-        // 'http://localhost:3001/characters_for_user/?token=a86921914213b918f6c95f676fb6955c'
+        'http://64.20.52.59:30081/characters_for_user/?token=b4f69ac5af753a361a5f116eea64ac88' // Production
+        // 'http://localhost:3001/characters_for_user/?token=a86921914213b918f6c95f676fb6955c' // Development - GM
+        // 'http://localhost:3001/characters_for_user/?token=3bc0fb3c866389faaf5e857ce1a26ac2' // Development - Humlehans
         ));
 
     if (response.statusCode == 200) {
       characters = jsonDecode(response.body);
 
       response = await http.get(Uri.parse(
-          'http://64.20.52.59:30081/campaigns/?token=b4f69ac5af753a361a5f116eea64ac88'
-          // 'http://localhost:3001/characters_for_user/?token=a86921914213b918f6c95f676fb6955c'
+          'http://64.20.52.59:30081/campaigns/?token=b4f69ac5af753a361a5f116eea64ac88' // Production
+          // 'http://localhost:3001/campaigns/?token=a86921914213b918f6c95f676fb6955c' // Development - GM
+          // 'http://localhost:3001/campaigns/?token=3bc0fb3c866389faaf5e857ce1a26ac2' // Development - Humlehans
           ));
 
       if (response.statusCode == 200) {
@@ -167,21 +169,6 @@ class CampaignsPage extends StatelessWidget {
                 '${appState.campaigns.length} campaigns:'),
           ),
           for (var campaign in appState.campaigns)
-            // ElevatedButton(
-            //   onPressed: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(
-            //           builder: (context) => Text(
-            //                 campaign['name'],
-            //                 // CampaignDetailsPage(campaign: campaign),
-            //               )
-            //           // CampaignDetailsPage(campaign: campaign),
-            //           ),
-            //     );
-            //   },
-            //   child: Text(campaign['name']),
-            // ),
             ElevatedButton(
               onPressed: () {
                 Navigator.push(
@@ -209,7 +196,8 @@ class CharactersPage extends StatelessWidget {
 
     var campaignCharacters = appState.characters
         .where((element) => element['campaign_id'] == campaign['id'])
-        .toList();
+        .toList()
+      ..sort((a, b) => a['name'].compareTo(b['name']));
 
     return LayoutBuilder(builder: (context, constraints) {
       return Scaffold(
@@ -245,12 +233,6 @@ class CharactersPage extends StatelessWidget {
                             child: Text(character['name']),
                           ),
                       SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: Text('Back'),
-                      ),
                     ],
                   ),
                 ),
@@ -294,11 +276,21 @@ class CharacterDetailsPage extends StatelessWidget {
               Text('Character Details:'),
               SizedBox(height: 10),
               Table(
+                // border: TableBorder.all(),
                 columnWidths: {
                   0: FixedColumnWidth(120.0),
                 },
                 children: [
-                  attributeValue(completeCharacter, 'Name'),
+                  defaultValue(completeCharacter, 'Name'),
+                  levels(completeCharacter),
+                  defaultValue(completeCharacter, 'Gender'),
+                  defaultValue(completeCharacter, 'Race'),
+                  defaultValue(completeCharacter, 'Alignment'),
+                  defaultValue(completeCharacter, 'Speed'),
+                  defaultValue(completeCharacter, 'Ac'),
+                  defaultValue(completeCharacter, 'Hp'),
+                  defaultValue(completeCharacter, 'Owner'),
+                  defaultValue(completeCharacter, ''),
                   attributeValue(completeCharacter, 'Strength'),
                   attributeValue(completeCharacter, 'Intelligence'),
                   attributeValue(completeCharacter, 'Wisdom'),
@@ -306,12 +298,6 @@ class CharacterDetailsPage extends StatelessWidget {
                   attributeValue(completeCharacter, 'Constitution'),
                   attributeValue(completeCharacter, 'Charisma'),
                 ],
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text('Back'),
               ),
             ],
           ),
@@ -321,9 +307,36 @@ class CharacterDetailsPage extends StatelessWidget {
   }
 }
 
+// Returns two cells - label and data
+TableRow defaultValue(completeCharacter, String attribute) {
+  var label = attribute;
+  var value = '';
+  if (completeCharacter[attribute.toLowerCase()] != null) {
+    value = completeCharacter[attribute.toLowerCase()].toString();
+  }
+
+  return TableRow(children: [Text(label), Text(value)]);
+}
+
+// Returns two cells - label and data
+TableRow levels(completeCharacter) {
+  var label = 'Levels';
+  var value = '';
+  completeCharacter['character_levels'].forEach((level) {
+    if (value != '') {
+      value += ' / ';
+    }
+    value += '${level['character_class']['name']} ${level['level']}';
+  });
+
+  return TableRow(children: [Text(label), Text(value)]);
+}
+
+// Returns label and data - in this case a tablw with two cells
 TableRow attributeValue(completeCharacter, String attribute) {
   var label = attribute;
   var value = '';
+
   if (completeCharacter[attribute.toLowerCase()] != null) {
     value = completeCharacter[attribute.toLowerCase()].toString();
   }
@@ -335,11 +348,35 @@ TableRow attributeValue(completeCharacter, String attribute) {
     bonusSign = completeCharacter[bonusAttribute] > 0 ? '+' : '';
     bonus = '(${bonusSign + bonus})';
   }
+  var saveAttribute = '${attribute.toLowerCase()}_save';
+  var saveSign = '';
+  var saveBonus = '';
+  if (completeCharacter[saveAttribute] != null) {
+    saveBonus = completeCharacter[saveAttribute].toString();
+    saveSign = completeCharacter[saveAttribute] > 0 ? '+' : '';
+    saveBonus = saveSign + saveBonus;
+  }
 
   return TableRow(children: [
     Text(label),
-    Text(value),
-    Text(bonus),
+    Table(
+      // border: TableBorder.all(),
+      columnWidths: {
+        0: FixedColumnWidth(30.0),
+        1: FixedColumnWidth(55.0),
+        2: FixedColumnWidth(60.0),
+        3: FixedColumnWidth(30.0),
+      },
+      children: [
+        TableRow(children: [
+          Text(value, textAlign: TextAlign.right),
+          Text(bonus, textAlign: TextAlign.right),
+          Text('  Save: '),
+          Text(saveBonus, textAlign: TextAlign.right),
+          Text(''),
+        ]),
+      ],
+    ),
   ]);
 }
 
