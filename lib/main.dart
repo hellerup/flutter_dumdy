@@ -7,6 +7,9 @@ import 'package:provider/provider.dart';
 // import http package
 import 'package:http/http.dart' as http;
 
+// GPS Access
+import 'package:location/location.dart';
+
 // Alle apps har denne metode som er entry point
 void main() {
   runApp(DumdyApp());
@@ -21,7 +24,7 @@ class DumdyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (context) => MyAppState(),
       child: MaterialApp(
-        title: 'Dumdy App',
+        title: 'Geo Welder App',
         theme: ThemeData(
           useMaterial3: true,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.red),
@@ -34,6 +37,50 @@ class DumdyApp extends StatelessWidget {
 
 // State-klassen er status på appen - storen
 class MyAppState extends ChangeNotifier {
+  Location location = Location();
+  double latitude = 0;
+  double longitude = 0;
+
+  Future<bool> requestPermission() async {
+    final permission = await location.requestPermission();
+    return permission == PermissionStatus.granted;
+  }
+
+  Future<LocationData> getCurrentLocation() async {
+    bool serviceEnabled;
+    PermissionStatus permissionGranted;
+    LocationData locationData;
+
+    print("getCurrentLocation");
+    serviceEnabled = await location.serviceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await location.requestService();
+      if (!serviceEnabled) {
+        throw Exception('Location service is not enabled');
+      }
+    }
+
+    print("Getting localhost location");
+    permissionGranted = await location.hasPermission();
+    if (permissionGranted == PermissionStatus.denied) {
+      permissionGranted = await location.requestPermission();
+      if (permissionGranted != PermissionStatus.granted) {
+        throw Exception('Location service is not enabled');
+      }
+    }
+
+    print("Getting location");
+    locationData = await location.getLocation();
+
+    print("Location: ${locationData.latitude}, ${locationData.longitude}");
+    latitude = locationData.latitude as double;
+    longitude = locationData.longitude as double;
+
+    notifyListeners();
+
+    return locationData;
+  }
+
   // Characters
   // Add Json variable to hold json value
   var characters = [];
@@ -149,6 +196,14 @@ class CampaignsPage extends StatelessWidget {
               },
               child: Text('Load Campaigns'),
             ),
+            ElevatedButton(
+              onPressed: () {
+                appState.getCurrentLocation();
+              },
+              child: Text('Get location'),
+            ),
+            Text(appState.latitude.toString()),
+            Text(appState.longitude.toString()),
           ],
         ),
       );
@@ -259,6 +314,11 @@ class CharacterDetailsPage extends StatelessWidget {
       (element) => element['id'] == character['id'],
     );
 
+    print("Spells");
+    print(completeCharacter['character_weapons']);
+    print("Spells igen");
+    print(character['character_spells']);
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       appBar: AppBar(
@@ -282,6 +342,7 @@ class CharacterDetailsPage extends StatelessWidget {
                 },
                 children: [
                   defaultValue(completeCharacter, 'Name'),
+                  defaultValue(completeCharacter, 'id'),
                   levels(completeCharacter),
                   defaultValue(completeCharacter, 'Gender'),
                   defaultValue(completeCharacter, 'Race'),
@@ -297,6 +358,23 @@ class CharacterDetailsPage extends StatelessWidget {
                   attributeValue(completeCharacter, 'Dexterity'),
                   attributeValue(completeCharacter, 'Constitution'),
                   attributeValue(completeCharacter, 'Charisma'),
+                ],
+              ),
+              Divider(height: 20, thickness: 2),
+              Text('Spells:'),
+              Table(
+                // border: TableBorder.all(),
+                columnWidths: {
+                  0: FixedColumnWidth(120.0),
+                },
+                children: [
+                  for (var spell in completeCharacter['character_spells'])
+                    TableRow(
+                      children: [
+                        Text(spell['name']),
+                        Text(spell['level'].toString()),
+                      ],
+                    ),
                 ],
               ),
             ],
